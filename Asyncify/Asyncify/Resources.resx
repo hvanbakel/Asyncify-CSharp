@@ -117,13 +117,22 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
-  <data name="AnalyzerDescription" xml:space="preserve">
+  <data name="AsyncifyInvocationDescription" xml:space="preserve">
     <value>Analyzes code for potential usage of the Task Asynchronous Programming model.</value>
   </data>
-  <data name="AnalyzerMessageFormat" xml:space="preserve">
-    <value>This method could benefit from the use of Task async.</value>
+  <data name="AsyncifyInvocationMessageFormat" xml:space="preserve">
+    <value>This invocation could benefit from the use of Task async.</value>
   </data>
-  <data name="AnalyzerTitle" xml:space="preserve">
+  <data name="AsyncifyInvocationTitle" xml:space="preserve">
+    <value>Use Task Async</value>
+  </data>
+  <data name="AsyncifyVariableAccessDescription" xml:space="preserve">
+    <value>Analyzes code for potential usage of the Task Asynchronous Programming model.</value>
+  </data>
+  <data name="AsyncifyVariableAccessMessageFormat" xml:space="preserve">
+    <value>This variable access could benefit from the use of Task async.</value>
+  </data>
+  <data name="AsyncifyVariableAccessTitle" xml:space="preserve">
     <value>Use Task Async</value>
   </data>
 </root>

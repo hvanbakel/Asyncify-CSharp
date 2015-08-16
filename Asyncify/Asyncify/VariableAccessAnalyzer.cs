@@ -1,67 +1,46 @@
-using System.Threading.Tasks;
+using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace Asyncify
 {
-    internal class VariableAccessAnalyzer
+    [DiagnosticAnalyzer(LanguageNames.CSharp)]
+    public class VariableAccessAnalyzer : DiagnosticAnalyzer
     {
-        private readonly SemanticModel semanticModel;
+        public const string DiagnosticId = "AsyncifyVariable";
 
-        public VariableAccessAnalyzer(SemanticModel semanticModel)
+        private static readonly LocalizableString Title = new LocalizableResourceString(nameof(Resources.AsyncifyVariableAccessTitle), Resources.ResourceManager, typeof (Resources));
+        private static readonly LocalizableString MessageFormat = new LocalizableResourceString(nameof(Resources.AsyncifyVariableAccessMessageFormat), Resources.ResourceManager, typeof (Resources));
+        private static readonly LocalizableString Description = new LocalizableResourceString(nameof(Resources.AsyncifyVariableAccessDescription), Resources.ResourceManager, typeof (Resources));
+
+        private const string HelpUrl = "https://msdn.microsoft.com/en-us/library/hh873175(v=vs.110).aspx";
+        private const string Category = "Async";
+
+        public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => ImmutableArray.Create(Rule);
+
+        private static readonly DiagnosticDescriptor Rule = new DiagnosticDescriptor(DiagnosticId, Title, MessageFormat,
+            Category, DiagnosticSeverity.Warning, true, Description, HelpUrl);
+
+        public override void Initialize(AnalysisContext context)
         {
-            this.semanticModel = semanticModel;
+            context.RegisterSyntaxNodeAction(CheckMemberAccess, SyntaxKind.SimpleMemberAccessExpression);
         }
 
-        public bool ShouldUseTap(MemberAccessExpressionSyntax memberAccessExpression)
+        private void CheckMemberAccess(SyntaxNodeAnalysisContext context)
         {
-            if (memberAccessExpression.IsWrappedInAwaitExpression())
+            var memberAccessExpression = context.Node as MemberAccessExpressionSyntax;
+
+            if (memberAccessExpression == null)
             {
-                return false;
+                return;
             }
 
-            var identifierName = memberAccessExpression.Name as IdentifierNameSyntax;
-            if (identifierName?.Identifier.ValueText != nameof(Task<int>.Result))
+            var memberAccessAnalyzer = new VariableAccessChecker(context.SemanticModel);
+            if (memberAccessAnalyzer.ShouldUseTap(memberAccessExpression))
             {
-                return false;
-            }
-
-            var symbol = FindSymbol(memberAccessExpression.Expression);
-            if (symbol == null)
-            {
-                return false;
-            }
-            var taskSymbol = semanticModel.Compilation.GetTypeByMetadataName(typeof(Task).FullName);
-            var taskOfTSymbol = semanticModel.Compilation.GetTypeByMetadataName(typeof(Task).FullName + "`1");
-
-            return symbol.IsGenericType ?
-                symbol.ConstructedFrom.Equals(taskOfTSymbol) :
-                symbol.Equals(taskSymbol);
-        }
-
-        private INamedTypeSymbol FindSymbol(ExpressionSyntax expression)
-        {
-            while (true)
-            {
-                var parenthesizedExpression = expression as ParenthesizedExpressionSyntax;
-                if (parenthesizedExpression != null)
-                {
-                    expression = parenthesizedExpression.Expression;
-                    continue;
-                }
-
-                var castExpression = expression as CastExpressionSyntax;
-                if (castExpression != null)
-                {
-                    return semanticModel.GetTypeInfo(castExpression.Type).Type as INamedTypeSymbol;
-                }
-
-                if (expression is InvocationExpressionSyntax)//Handled by invocationanalzyer
-                {
-                    return null;
-                }
-
-                return ((ILocalSymbol) semanticModel.GetSymbolInfo(expression).Symbol).Type as INamedTypeSymbol;
+                context.ReportDiagnostic(Diagnostic.Create(Rule, memberAccessExpression.GetLocation()));
             }
         }
     }

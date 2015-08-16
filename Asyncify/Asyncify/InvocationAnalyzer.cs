@@ -1,85 +1,47 @@
-﻿using System;
+using System.Collections.Immutable;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace Asyncify
 {
-    internal class InvocationAnalyzer
+    [DiagnosticAnalyzer(LanguageNames.CSharp)]
+    public class InvocationAnalyzer : DiagnosticAnalyzer
     {
-        private readonly SemanticModel semanticModel;
+        public const string DiagnosticId = "AsyncifyInvocation";
 
-        private Lazy<ITypeSymbol> taskSymbol;
-        private Lazy<ITypeSymbol> taskOfTSymbol;
+        private static readonly LocalizableString Title = new LocalizableResourceString(nameof(Resources.AsyncifyInvocationTitle), Resources.ResourceManager, typeof(Resources));
+        private static readonly LocalizableString MessageFormat = new LocalizableResourceString(nameof(Resources.AsyncifyInvocationMessageFormat), Resources.ResourceManager, typeof(Resources));
+        private static readonly LocalizableString Description = new LocalizableResourceString(nameof(Resources.AsyncifyInvocationDescription), Resources.ResourceManager, typeof(Resources));
+        private const string HelpUrl = "https://msdn.microsoft.com/en-us/library/hh873175(v=vs.110).aspx";
+        private const string Category = "Async";
 
-        public InvocationAnalyzer(SemanticModel semanticModel)
+        public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => ImmutableArray.Create(Rule);
+
+        private static readonly DiagnosticDescriptor Rule = new DiagnosticDescriptor(DiagnosticId, Title, MessageFormat, Category, DiagnosticSeverity.Warning, true, Description, HelpUrl);
+
+        public override void Initialize(AnalysisContext context)
         {
-            this.semanticModel = semanticModel;
+            context.RegisterSyntaxNodeAction(CheckInvocation, SyntaxKind.InvocationExpression);
         }
 
-        internal bool ShouldUseTap(InvocationExpressionSyntax invocation)
+        private void CheckInvocation(SyntaxNodeAnalysisContext context)
         {
-            var method = invocation.FirstAncestorOrSelf<MethodDeclarationSyntax>();
-            if (invocation.IsWrappedInAwaitExpression() || method == null)
+            var invocationExpression = context.Node as InvocationExpressionSyntax;
+
+            if (invocationExpression == null)
             {
-                return false;
+                return;
             }
 
-            taskSymbol = new Lazy<ITypeSymbol>(() => semanticModel.Compilation.GetTypeByMetadataName(typeof(Task).FullName));
-            taskOfTSymbol = new Lazy<ITypeSymbol>(() => semanticModel.Compilation.GetTypeByMetadataName(typeof(Task).FullName + "`1"));
+            var invocationAnalyzer = new InvocationChecker(context.SemanticModel);
 
-            if (MethodReturnsTask(method))
+            if (invocationAnalyzer.ShouldUseTap(invocationExpression))
             {
-                return false;
+                context.ReportDiagnostic(Diagnostic.Create(Rule, invocationExpression.GetLocation()));
             }
-
-            var symbolToCheck = semanticModel.GetSymbolInfo(invocation).Symbol as IMethodSymbol;
-
-            return IsAwaitableMethod(symbolToCheck) && InvocationCallsIsWrappedInResultCall(invocation, symbolToCheck);
-        }
-
-        private bool InvocationCallsIsWrappedInResultCall(InvocationExpressionSyntax invocation, IMethodSymbol invokedMethodSymbol)
-        {
-            if (invokedMethodSymbol.ReturnType.Equals(taskSymbol.Value))
-            {
-                return true;
-            }
-
-            SyntaxNode node = invocation;
-            while (node.Parent != null)
-            {
-                node = node.Parent;
-
-                var memberAccess = node as MemberAccessExpressionSyntax;
-                var identifierName = memberAccess?.Name as IdentifierNameSyntax;
-                if (identifierName != null && identifierName.Identifier.ValueText == nameof(Task<int>.Result))
-                {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        private bool MethodReturnsTask(MethodDeclarationSyntax method)
-        {
-            return IsTask(semanticModel.GetTypeInfo(method.ReturnType).Type as INamedTypeSymbol);
-        }
-
-        private bool IsAwaitableMethod(IMethodSymbol invokedSymbol)
-        {
-            return invokedSymbol.IsAsync || IsTask(invokedSymbol.ReturnType as INamedTypeSymbol);
-        }
-
-        private bool IsTask(INamedTypeSymbol returnType)
-        {
-            if (returnType == null)
-            {
-                return false;
-            }
-
-            return returnType.IsGenericType ?
-                returnType.ConstructedFrom.Equals(taskOfTSymbol.Value) :
-                returnType.Equals(taskSymbol.Value);
         }
     }
 }

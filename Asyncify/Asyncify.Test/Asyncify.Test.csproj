@@ -102,12 +102,14 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="BasAnalyzerFixTest.cs" />
+    <Compile Include="VariableAccessAnalyzerFixTest.cs" />
     <Compile Include="Verifiers\CodeFixVerifier.cs" />
     <Compile Include="Verifiers\DiagnosticVerifier.cs" />
     <Compile Include="Helpers\CodeFixVerifier.Helper.cs" />
     <Compile Include="Helpers\DiagnosticResult.cs" />
     <Compile Include="Helpers\DiagnosticVerifier.Helper.cs" />
-    <Compile Include="AnalyzerFixTest.cs" />
+    <Compile Include="InvocationAnalyzerFixTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

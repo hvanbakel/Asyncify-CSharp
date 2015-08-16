@@ -26,8 +26,6 @@ namespace TestHelper
         internal static string VisualBasicDefaultExt = "vb";
         internal static string TestProjectName = "TestProject";
 
-        protected abstract MetadataReference[] AdditionalReferences { get; }
-
         #region  Get Diagnostics
 
         /// <summary>
@@ -175,8 +173,7 @@ Code compiled:
                 .AddMetadataReference(projectId, CorlibReference)
                 .AddMetadataReference(projectId, SystemCoreReference)
                 .AddMetadataReference(projectId, CSharpSymbolsReference)
-                .AddMetadataReference(projectId, CodeAnalysisReference)
-                .AddMetadataReferences(projectId, AdditionalReferences);
+                .AddMetadataReference(projectId, CodeAnalysisReference);
 
             int count = 0;
             foreach (var source in sources)

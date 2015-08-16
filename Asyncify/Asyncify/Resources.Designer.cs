@@ -64,27 +64,54 @@ namespace Asyncify {
         /// <summary>
         ///   Looks up a localized string similar to Analyzes code for potential usage of the Task Asynchronous Programming model..
         /// </summary>
-        internal static string AnalyzerDescription {
+        internal static string AsyncifyInvocationDescription {
             get {
-                return ResourceManager.GetString("AnalyzerDescription", resourceCulture);
+                return ResourceManager.GetString("AsyncifyInvocationDescription", resourceCulture);
             }
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to This method could benefit from the use of Task async..
+        ///   Looks up a localized string similar to This invocation could benefit from the use of Task async..
         /// </summary>
-        internal static string AnalyzerMessageFormat {
+        internal static string AsyncifyInvocationMessageFormat {
             get {
-                return ResourceManager.GetString("AnalyzerMessageFormat", resourceCulture);
+                return ResourceManager.GetString("AsyncifyInvocationMessageFormat", resourceCulture);
             }
         }
         
         /// <summary>
         ///   Looks up a localized string similar to Use Task Async.
         /// </summary>
-        internal static string AnalyzerTitle {
+        internal static string AsyncifyInvocationTitle {
             get {
-                return ResourceManager.GetString("AnalyzerTitle", resourceCulture);
+                return ResourceManager.GetString("AsyncifyInvocationTitle", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Analyzes code for potential usage of the Task Asynchronous Programming model..
+        /// </summary>
+        internal static string AsyncifyVariableAccessDescription {
+            get {
+                return ResourceManager.GetString("AsyncifyVariableAccessDescription", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to This variable access could benefit from the use of Task async..
+        /// </summary>
+        internal static string AsyncifyVariableAccessMessageFormat {
+            get {
+                return ResourceManager.GetString("AsyncifyVariableAccessMessageFormat", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Use Task Async.
+        /// </summary>
+        internal static string AsyncifyVariableAccessTitle {
+            get {
+                return ResourceManager.GetString("AsyncifyVariableAccessTitle", resourceCulture);
             }
         }
     }
