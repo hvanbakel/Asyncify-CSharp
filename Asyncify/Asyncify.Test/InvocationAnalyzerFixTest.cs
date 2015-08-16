@@ -113,6 +113,24 @@ public async System.Threading.Tasks.Task Test()
             VerifyCSharpFix(oldSource, newSource);
         }
 
+        [TestMethod]
+        public void FixWillWrapInParenthesesIfNeeded()
+        {
+            var oldSource = string.Format(FormatCode, @"
+public void Test()
+{
+    var test = new AsyncClass();
+    var result = test.Call().Result.ToString();
+}", string.Empty);
+            var newSource = string.Format(FormatCode, @"
+public async System.Threading.Tasks.Task Test()
+{
+    var test = new AsyncClass();
+    var result = (await test.Call()).ToString();
+}", string.Empty);
+            VerifyCSharpFix(oldSource, newSource);
+        }
+
         protected override CodeFixProvider GetCSharpCodeFixProvider()
         {
             return new InvocationFixProvider();

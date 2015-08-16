@@ -4,6 +4,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CodeFixes;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using static Microsoft.CodeAnalysis.CSharp.SyntaxFactory;
 
 namespace Asyncify
 {
@@ -18,7 +19,12 @@ namespace Asyncify
         {
             var trackedRoot = syntaxRoot.TrackNodes(method, variableAccess);
             var trackedVariableAccess = trackedRoot.GetCurrentNode(variableAccess);
-            var newAccess = SyntaxFactory.AwaitExpression(variableAccess.Expression.WithLeadingTrivia(SyntaxFactory.Space));
+            ExpressionSyntax newAccess = AwaitExpression(variableAccess.Expression.WithLeadingTrivia(Space));
+            if (variableAccess.Parent is MemberAccessExpressionSyntax)
+            {
+                newAccess = ParenthesizedExpression(newAccess);
+            }
+
             syntaxRoot = trackedRoot.ReplaceNode(trackedVariableAccess, newAccess);
             method = syntaxRoot.GetCurrentNode(method);
             return syntaxRoot;

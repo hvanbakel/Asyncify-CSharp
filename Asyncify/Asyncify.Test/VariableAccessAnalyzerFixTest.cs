@@ -29,6 +29,28 @@ namespace Asyncify.Test
         var result = await temp;
     }", expected);
         }
+        [TestMethod]
+        public void WillWrapVariableInParenthesesIfNeeded()
+        {
+            var expected = GetResultWithLocation(10, 22);
+            VerifyCodeWithReturn(@"
+    public void Test()
+    {
+        var temp = CallAsync();
+        var result = temp.Result.ToString();
+    }", expected);
+            VerifyCodeFixWithReturn(@"
+    public void Test()
+    {
+        var temp = CallAsync();
+        var result = temp.Result.ToString();
+    }", @"
+    public async System.Threading.Tasks.Task Test()
+    {
+        var temp = CallAsync();
+        var result = (await temp).ToString();
+    }", expected);
+        }
 
         [TestMethod]
         public void CanFindMethodNotUsingTapWithVariableInBraces()
