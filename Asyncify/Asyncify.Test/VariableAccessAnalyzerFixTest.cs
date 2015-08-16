@@ -4,12 +4,13 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Asyncify.Test
 {
+    [TestClass]
     public class VariableAccessAnalyzerFixTest : BasAnalyzerFixTest
     {
         [TestMethod]
         public void CanFindMethodNotUsingTapWithVariable()
         {
-            var expected = GetResultWithLocation(7, 17);
+            var expected = GetResultWithLocation(10, 22);
             VerifyCodeWithReturn(@"
     public void Test()
     {
@@ -27,17 +28,12 @@ namespace Asyncify.Test
         var temp = CallAsync();
         var result = await temp;
     }", expected);
-            VerifyCodeNoReturn(@"
-    public void Test()
-    {
-        var temp = CallAsync();
-    }", expected);
         }
 
         [TestMethod]
         public void CanFindMethodNotUsingTapWithVariableInBraces()
         {
-            var expected = GetResultWithLocation(7, 17);
+            var expected = GetResultWithLocation(10, 22);
             VerifyCodeWithReturn(@"
     public void Test()
     {
@@ -54,11 +50,6 @@ namespace Asyncify.Test
     {
         var temp = CallAsync();
         var result = await ((Task<int>)temp);
-    }", expected);
-            VerifyCodeNoReturn(@"
-    public void Test()
-    {
-        CallAsync();
     }", expected);
         }
 
