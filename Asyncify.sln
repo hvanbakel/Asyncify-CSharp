@@ -1,0 +1,33 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 14
+VisualStudioVersion = 14.0.23107.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Asyncify", "Asyncify\Asyncify\Asyncify.csproj", "{C15B2F4D-99C3-4833-A9D0-32FFD969C248}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Asyncify.Test", "Asyncify\Asyncify.Test\Asyncify.Test.csproj", "{081DE494-482A-4B63-8C58-3FF52B548258}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Asyncify.Vsix", "Asyncify\Asyncify.Vsix\Asyncify.Vsix.csproj", "{86D26DFA-92B1-4F33-B350-F3302CD80239}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{C15B2F4D-99C3-4833-A9D0-32FFD969C248}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C15B2F4D-99C3-4833-A9D0-32FFD969C248}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C15B2F4D-99C3-4833-A9D0-32FFD969C248}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C15B2F4D-99C3-4833-A9D0-32FFD969C248}.Release|Any CPU.Build.0 = Release|Any CPU
+		{081DE494-482A-4B63-8C58-3FF52B548258}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{081DE494-482A-4B63-8C58-3FF52B548258}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{081DE494-482A-4B63-8C58-3FF52B548258}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{081DE494-482A-4B63-8C58-3FF52B548258}.Release|Any CPU.Build.0 = Release|Any CPU
+		{86D26DFA-92B1-4F33-B350-F3302CD80239}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{86D26DFA-92B1-4F33-B350-F3302CD80239}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{86D26DFA-92B1-4F33-B350-F3302CD80239}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
