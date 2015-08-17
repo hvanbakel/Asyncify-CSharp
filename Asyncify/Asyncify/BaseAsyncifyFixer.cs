@@ -44,7 +44,7 @@ namespace Asyncify
         {
             var semanticModel = await document.GetSemanticModelAsync(cancellationToken);
             var syntaxRoot = await document.GetSyntaxRootAsync(cancellationToken);
-
+            
             var method = nodeToFix.FirstAncestorOrSelf<MethodDeclarationSyntax>();
             var returnTypeSymbol = semanticModel.GetDeclaredSymbol(method).ReturnType;
 

@@ -10,7 +10,7 @@ namespace Asyncify.Test
         [TestMethod]
         public void CanFindMethodNotUsingTapWithVariable()
         {
-            var expected = GetResultWithLocation(10, 22);
+            var expected = GetResultWithLocation(11, 22);
             VerifyCodeWithReturn(@"
     public void Test()
     {
@@ -32,7 +32,7 @@ namespace Asyncify.Test
         [TestMethod]
         public void WillWrapVariableInParenthesesIfNeeded()
         {
-            var expected = GetResultWithLocation(10, 22);
+            var expected = GetResultWithLocation(11, 22);
             VerifyCodeWithReturn(@"
     public void Test()
     {
@@ -55,7 +55,7 @@ namespace Asyncify.Test
         [TestMethod]
         public void CanFindViolationInMethodUsingTap()
         {
-            var expected = GetResultWithLocation(10, 22);
+            var expected = GetResultWithLocation(11, 22);
             VerifyCodeWithReturn(@"
     public async Task Test()
     {
@@ -82,7 +82,7 @@ namespace Asyncify.Test
         [TestMethod]
         public void CanFindMethodNotUsingTapWithVariableInBraces()
         {
-            var expected = GetResultWithLocation(10, 22);
+            var expected = GetResultWithLocation(11, 22);
             VerifyCodeWithReturn(@"
     public void Test()
     {

@@ -30,6 +30,7 @@ namespace Asyncify.Test
     }";
 
         protected const string FormatCode = @"
+using System.Linq;
 using System.Threading.Tasks;
 
 public class TapTest

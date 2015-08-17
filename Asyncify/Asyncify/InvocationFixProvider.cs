@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Composition;
 using System.Threading.Tasks;
@@ -18,7 +19,13 @@ namespace Asyncify
 
         protected override SyntaxNode ApplyFix(ref MethodDeclarationSyntax method, InvocationExpressionSyntax invocation, SyntaxNode syntaxRoot)
         {
-            var trackedRoot = syntaxRoot.TrackNodes(method, invocation);
+            var lambda = invocation.FirstAncestorOrSelf<SimpleLambdaExpressionSyntax>();
+            var nodesToTrack = new List<SyntaxNode> {method, invocation};
+            if (lambda != null)
+            {
+                nodesToTrack.Add(lambda);
+            }
+            var trackedRoot = syntaxRoot.TrackNodes(nodesToTrack);
             SyntaxNode oldNode = trackedRoot.GetCurrentNode(invocation);
             SyntaxNode newNode = AwaitExpression(invocation.WithLeadingTrivia(Space));
 
@@ -43,9 +50,28 @@ namespace Asyncify
                 node = node.Parent;
             }
 
-            syntaxRoot = trackedRoot.ReplaceNode(oldNode, newNode);
-            method = syntaxRoot.GetCurrentNode(method);
+            if (lambda != null)
+            {
+                lambda = trackedRoot.GetCurrentNode(lambda);
+                syntaxRoot = FixLambda(trackedRoot, lambda, (ExpressionSyntax) oldNode);
+            }
+            else
+            {
+                syntaxRoot = trackedRoot.ReplaceNode(oldNode, newNode);
+                method = syntaxRoot.GetCurrentNode(method);
+            }
             return syntaxRoot;
+        }
+
+        private SyntaxNode FixLambda(SyntaxNode root, SimpleLambdaExpressionSyntax lambda, ExpressionSyntax oldNode)
+        {
+            var newBody = lambda.Body.ReplaceNode(oldNode, AwaitExpression(oldNode.WithLeadingTrivia(Space)));
+            var newLambda = lambda
+                .WithAsyncKeyword(Token(SyntaxKind.AsyncKeyword).WithTrailingTrivia(Space))
+                .WithBody(newBody);
+
+            return root.ReplaceNode(lambda, newLambda);
+
         }
     }
 }

@@ -31,12 +31,12 @@ namespace Asyncify.Test
     public void Test()
     {
         var result = CallAsync().Result;
-    }", GetResultWithLocation(9, 22));
+    }", GetResultWithLocation(10, 22));
             VerifyCodeNoReturn(@"
     public void Test()
     {
         CallAsync();
-    }", GetResultWithLocation(9, 9));
+    }", GetResultWithLocation(10, 9));
 
             VerifyCodeFixWithReturn(@"
     public void Test()
@@ -46,7 +46,7 @@ namespace Asyncify.Test
     public async System.Threading.Tasks.Task Test()
     {
         var result = await CallAsync();
-    }", GetResultWithLocation(9, 22));
+    }", GetResultWithLocation(10, 22));
             VerifyCodeFixNoReturn(@"
     public void Test()
     {
@@ -55,7 +55,7 @@ namespace Asyncify.Test
     public async System.Threading.Tasks.Task Test()
     {
         await CallAsync();
-    }", GetResultWithLocation(9, 9));
+    }", GetResultWithLocation(10, 9));
         }
 
         [TestMethod]
@@ -66,7 +66,7 @@ namespace Asyncify.Test
     {
         var temp = await CallAsync();
         var result = CallAsync().Result;
-    }", GetResultWithLocation(10, 22));
+    }", GetResultWithLocation(11, 22));
         }
 
         [TestMethod]
@@ -97,7 +97,7 @@ namespace Asyncify.Test
     public void Test()
     {
         var result = (CallAsync()).Result;
-    }", GetResultWithLocation(9, 23));
+    }", GetResultWithLocation(10, 23));
             VerifyCodeFixWithReturn(@"
     public void Test()
     {
@@ -106,7 +106,7 @@ namespace Asyncify.Test
     public async System.Threading.Tasks.Task Test()
     {
         var result = (await CallAsync());
-    }", GetResultWithLocation(9, 23));
+    }", GetResultWithLocation(10, 23));
         }
 
         [TestMethod]
@@ -194,6 +194,24 @@ public async System.Threading.Tasks.Task Test()
 {
     var test = new AsyncClass();
     var result = await test.Call();
+}", string.Empty);
+            VerifyCSharpFix(oldSource, newSource);
+        }
+
+        [TestMethod]
+        public void TestCodeFixWithinLambda()
+        {
+            var oldSource = string.Format(FormatCode, @"
+public void Test()
+{
+    int[] bla = null;
+    bla.Select(x => Task.Delay(100));
+}", string.Empty);
+            var newSource = string.Format(FormatCode, @"
+public void Test()
+{
+    int[] bla = null;
+    bla.Select(async x => await Task.Delay(100));
 }", string.Empty);
             VerifyCSharpFix(oldSource, newSource);
         }
