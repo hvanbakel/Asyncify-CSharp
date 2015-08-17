@@ -78,6 +78,44 @@ namespace Asyncify.Test
         }
 
         [TestMethod]
+        public void FixIsAppliedUpCallTree()
+        {
+            var oldSource = string.Format(FormatCode, @"
+public int SecondLevelUp()
+{
+    return FirstLevelUp();
+}
+
+public int FirstLevelUp()
+{
+    return Test();
+}
+
+public int Test()
+{
+    var test = new AsyncClass();
+    return test.Call().Result;
+}", string.Empty);
+            var newSource = string.Format(FormatCode, @"
+public async System.Threading.Tasks.Task<int> SecondLevelUp()
+{
+    return await FirstLevelUp();
+}
+
+public async System.Threading.Tasks.Task<int> FirstLevelUp()
+{
+    return await Test();
+}
+
+public async System.Threading.Tasks.Task<int> Test()
+{
+    var test = new AsyncClass();
+    return await test.Call();
+}", string.Empty);
+            VerifyCSharpFix(oldSource, newSource);
+        }
+
+        [TestMethod]
         public void TestCodeFixWithReturnType()
         {
             var oldSource = string.Format(FormatCode, @"

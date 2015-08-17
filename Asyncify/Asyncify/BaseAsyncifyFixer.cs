@@ -1,10 +1,12 @@
-﻿using System.Threading;
+﻿using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.CodeFixes;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.FindSymbols;
 using static Microsoft.CodeAnalysis.CSharp.SyntaxFactory;
 
 namespace Asyncify
@@ -49,11 +51,91 @@ namespace Asyncify
             syntaxRoot = ApplyFix(ref method, nodeToFix, syntaxRoot);
             syntaxRoot = FixReturnTypeAndModifiers(ref method, returnTypeSymbol, syntaxRoot);
             
-            return document.Project.Solution.WithDocumentSyntaxRoot(document.Id, syntaxRoot);
+            var newSolution = document.Project.Solution.WithDocumentSyntaxRoot(document.Id, syntaxRoot);
+
+            var newDocument = newSolution.GetDocument(document.Id);
+            newSolution = await FixCallingMembersAsync(newSolution, newDocument, method, cancellationToken);
+        
+            return newSolution;
+        }
+
+        private static async Task<Solution> FixCallingMembersAsync(Solution solution, Document newDocument, MethodDeclarationSyntax method, CancellationToken cancellationToken)
+        {
+            var methodSymbol = await FindMethodSymbolInSolution(newDocument, method, cancellationToken);
+
+            var callers = await SymbolFinder.FindCallersAsync(methodSymbol, solution, cancellationToken);
+            var callersByDocumentId = callers.SelectMany(x => x.Locations).GroupBy(x => solution.GetDocumentId(x.SourceTree));
+            var iterator = 0;
+
+            foreach (var documentId in callersByDocumentId)
+            {
+                var document = solution.GetDocument(documentId.Key);
+                if (document == null)
+                {
+                    continue;
+                }
+
+                var semanticModel = await document.GetSemanticModelAsync(cancellationToken);
+                var callerRoot = await document.GetSyntaxRootAsync(cancellationToken);
+                var referencesInDocument = documentId.Select(x => callerRoot.FindNode(x.SourceSpan)).ToArray();
+                var returnTypeSymbols = referencesInDocument
+                    .Select(x => x.FirstAncestorOrSelf<MethodDeclarationSyntax>())
+                    .Select(x => semanticModel.GetDeclaredSymbol(x).ReturnType).ToArray();
+
+                var numInvocations = referencesInDocument.Length;
+
+                for (var i = 0; i < numInvocations; i++)
+                {
+                    iterator++;
+                    var trackedRoot = callerRoot.TrackNodes(referencesInDocument);
+                    var callingNode = trackedRoot.GetCurrentNode(referencesInDocument[i]);
+
+                    var invocation = (InvocationExpressionSyntax) callingNode.Parent;
+
+                    if (invocation.FirstAncestorOrSelf<AwaitExpressionSyntax>() == null)
+                    {
+                        var fixProvider = new InvocationFixProvider();
+                        var tempMethod = invocation.FirstAncestorOrSelf<MethodDeclarationSyntax>();
+                        callerRoot = fixProvider.ApplyFix(ref tempMethod, invocation, trackedRoot);
+                        callerRoot = FixReturnTypeAndModifiers(ref tempMethod, returnTypeSymbols[i], callerRoot);
+
+                        referencesInDocument = callerRoot
+                            .GetCurrentNodes<SyntaxNode>(referencesInDocument)
+                            .ToArray();
+                    }
+                }
+
+                solution = solution.WithDocumentSyntaxRoot(document.Id, callerRoot);
+
+                var refactoredMethods = referencesInDocument.Select(x => x.FirstAncestorOrSelf<MethodDeclarationSyntax>()).ToArray();
+                foreach (var refactoredMethod in refactoredMethods)
+                {
+                    solution = await FixCallingMembersAsync(solution, solution.GetDocument(document.Id), refactoredMethod, cancellationToken);
+                }
+            }
+
+
+            return solution;
+        }
+
+        private static async Task<IMethodSymbol> FindMethodSymbolInSolution(Document newDocument, MethodDeclarationSyntax method, CancellationToken cancellationToken)
+        {
+            var syntaxTree = await newDocument.GetSyntaxTreeAsync(cancellationToken);
+            var compilation = await newDocument.Project.GetCompilationAsync(cancellationToken);
+            var semanticModel = compilation.GetSemanticModel(syntaxTree);
+            var root = await syntaxTree.GetRootAsync(cancellationToken);
+            var node = root.FindNode(method.GetLocation().SourceSpan);
+            var methodSymbol = semanticModel.GetDeclaredSymbol(node) as IMethodSymbol;
+            return methodSymbol;
         }
 
         private static SyntaxNode FixReturnTypeAndModifiers(ref MethodDeclarationSyntax method, ITypeSymbol returnTypeSymbol, SyntaxNode syntaxRoot)
         {
+            if (method.Modifiers.Any(SyntaxKind.AsyncKeyword))
+            {
+                return syntaxRoot;
+            }
+
             TypeSyntax typeSyntax;
             if (returnTypeSymbol.SpecialType == SpecialType.System_Void)
             {
@@ -68,9 +150,9 @@ namespace Asyncify
                     .WithReturnType(typeSyntax.WithTrailingTrivia(Space))
                     .AddModifiers(Token(SyntaxKind.AsyncKeyword).WithTrailingTrivia(Space));
 
-            syntaxRoot = syntaxRoot.ReplaceNode(method, newMethod);
 
-            method = newMethod;
+            syntaxRoot = syntaxRoot.ReplaceNode(method, newMethod);
+            method = syntaxRoot.FindNode(method.GetLocation().SourceSpan) as MethodDeclarationSyntax;
             return syntaxRoot;
         }
 
