@@ -53,7 +53,7 @@ namespace Asyncify
             if (lambda != null)
             {
                 lambda = trackedRoot.GetCurrentNode(lambda);
-                syntaxRoot = FixLambda(trackedRoot, lambda, (ExpressionSyntax) oldNode);
+                syntaxRoot = FixLambda(trackedRoot, lambda, (ExpressionSyntax) oldNode, newNode);
             }
             else
             {
@@ -63,12 +63,11 @@ namespace Asyncify
             return syntaxRoot;
         }
 
-        private SyntaxNode FixLambda(SyntaxNode root, SimpleLambdaExpressionSyntax lambda, ExpressionSyntax oldNode)
+        private SyntaxNode FixLambda(SyntaxNode root, SimpleLambdaExpressionSyntax lambda, ExpressionSyntax oldNode, SyntaxNode newNode)
         {
-            var newBody = lambda.Body.ReplaceNode(oldNode, AwaitExpression(oldNode.WithLeadingTrivia(Space)));
             var newLambda = lambda
                 .WithAsyncKeyword(Token(SyntaxKind.AsyncKeyword).WithTrailingTrivia(Space))
-                .WithBody(newBody);
+                .WithBody(lambda.Body.ReplaceNode(oldNode, newNode));
 
             return root.ReplaceNode(lambda, newLambda);
 

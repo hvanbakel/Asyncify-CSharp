@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
@@ -49,13 +50,23 @@ namespace Asyncify
             var returnTypeSymbol = semanticModel.GetDeclaredSymbol(method).ReturnType;
 
             syntaxRoot = ApplyFix(ref method, nodeToFix, syntaxRoot);
-            syntaxRoot = FixReturnTypeAndModifiers(ref method, returnTypeSymbol, syntaxRoot);
-            
-            var newSolution = document.Project.Solution.WithDocumentSyntaxRoot(document.Id, syntaxRoot);
 
-            var newDocument = newSolution.GetDocument(document.Id);
-            newSolution = await FixCallingMembersAsync(newSolution, newDocument, method, cancellationToken);
-        
+            var lambda = nodeToFix.FirstAncestorOrSelf<SimpleLambdaExpressionSyntax>();
+            Solution newSolution;
+            if (lambda == null)
+            {
+                syntaxRoot = FixMethodSignature(ref method, returnTypeSymbol, syntaxRoot);
+
+                newSolution = document.Project.Solution.WithDocumentSyntaxRoot(document.Id, syntaxRoot);
+
+                var newDocument = newSolution.GetDocument(document.Id);
+                newSolution = await FixCallingMembersAsync(newSolution, newDocument, method, cancellationToken);
+            }
+            else
+            {
+                newSolution = document.Project.Solution.WithDocumentSyntaxRoot(document.Id, syntaxRoot);
+            }
+
             return newSolution;
         }
 
@@ -65,7 +76,6 @@ namespace Asyncify
 
             var callers = await SymbolFinder.FindCallersAsync(methodSymbol, solution, cancellationToken);
             var callersByDocumentId = callers.SelectMany(x => x.Locations).GroupBy(x => solution.GetDocumentId(x.SourceTree));
-            var iterator = 0;
 
             foreach (var documentId in callersByDocumentId)
             {
@@ -84,22 +94,31 @@ namespace Asyncify
 
                 var numInvocations = referencesInDocument.Length;
 
+                //Iterate the invocations
                 for (var i = 0; i < numInvocations; i++)
                 {
-                    iterator++;
+                    //Track all nodes in use
                     var trackedRoot = callerRoot.TrackNodes(referencesInDocument);
+                    //Get the current node from the tracking system
                     var callingNode = trackedRoot.GetCurrentNode(referencesInDocument[i]);
 
                     var invocation = callingNode.Parent as InvocationExpressionSyntax;
                     if (invocation == null)
                         continue;//Broken code case
 
+                    //If it's already in an await expression, leave it
                     if (invocation.FirstAncestorOrSelf<AwaitExpressionSyntax>() == null)
                     {
                         var fixProvider = new InvocationFixProvider();
+                        var lambda = invocation.FirstAncestorOrSelf<SimpleLambdaExpressionSyntax>();
                         var tempMethod = invocation.FirstAncestorOrSelf<MethodDeclarationSyntax>();
                         callerRoot = fixProvider.ApplyFix(ref tempMethod, invocation, trackedRoot);
-                        callerRoot = FixReturnTypeAndModifiers(ref tempMethod, returnTypeSymbols[i], callerRoot);
+
+                        //Check for a lambda, if we're refactoring a lambda, we don't need to update the signature of the method
+                        if (lambda == null)
+                        {
+                            callerRoot = FixMethodSignature(ref tempMethod, returnTypeSymbols[i], callerRoot);
+                        }
 
                         referencesInDocument = callerRoot
                             .GetCurrentNodes<SyntaxNode>(referencesInDocument)
@@ -109,14 +128,21 @@ namespace Asyncify
 
                 solution = solution.WithDocumentSyntaxRoot(document.Id, callerRoot);
 
-                var refactoredMethods = referencesInDocument.Select(x => x.FirstAncestorOrSelf<MethodDeclarationSyntax>()).ToArray();
-                foreach (var refactoredMethod in refactoredMethods)
-                {
-                    solution = await FixCallingMembersAsync(solution, solution.GetDocument(document.Id), refactoredMethod, cancellationToken);
-                }
+                solution = await RecurseUpCallTree(solution, referencesInDocument, document, cancellationToken);
             }
 
 
+            return solution;
+        }
+
+        private static async Task<Solution> RecurseUpCallTree(Solution solution, SyntaxNode[] referencesInDocument,
+            Document document, CancellationToken cancellationToken)
+        {
+            var refactoredMethods = referencesInDocument.Select(x => x.FirstAncestorOrSelf<MethodDeclarationSyntax>()).ToArray();
+            foreach (var refactoredMethod in refactoredMethods)
+            {
+                solution = await FixCallingMembersAsync(solution, solution.GetDocument(document.Id), refactoredMethod, cancellationToken);
+            }
             return solution;
         }
 
@@ -131,7 +157,7 @@ namespace Asyncify
             return methodSymbol;
         }
 
-        private static SyntaxNode FixReturnTypeAndModifiers(ref MethodDeclarationSyntax method, ITypeSymbol returnTypeSymbol, SyntaxNode syntaxRoot)
+        private static SyntaxNode FixMethodSignature(ref MethodDeclarationSyntax method, ITypeSymbol returnTypeSymbol, SyntaxNode syntaxRoot)
         {
             if (method.Modifiers.Any(SyntaxKind.AsyncKeyword))
             {
