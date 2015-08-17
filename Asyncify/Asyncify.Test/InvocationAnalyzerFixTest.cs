@@ -59,6 +59,38 @@ namespace Asyncify.Test
         }
 
         [TestMethod]
+        public void CanFindViolationInMethodUsingTap()
+        {
+            VerifyCodeWithReturn(@"
+    public async Task Test()
+    {
+        var temp = await CallAsync();
+        var result = CallAsync().Result;
+    }", GetResultWithLocation(10, 22));
+        }
+
+        [TestMethod]
+        public void DoesNotViolateOnMethodsWithOutOrRef()
+        {
+            VerifyCodeWithReturn(@"
+    public void Test(out string test)
+    {
+        test = string.Empty;
+        var result = CallAsync().Result;
+    }", EmptyExpectedResults);
+        }
+
+        [TestMethod]
+        public void DoesNotAddAwaitToVoidMethods()
+        {
+            VerifyCodeWithReturn(@"
+    public void Test()
+    {
+        CallAsync().Wait();
+    }", EmptyExpectedResults);
+        }
+
+        [TestMethod]
         public void CanFindMethodWhenUsingBraces()
         {
             VerifyCodeWithReturn(@"
@@ -75,6 +107,34 @@ namespace Asyncify.Test
     {
         var result = (await CallAsync());
     }", GetResultWithLocation(9, 23));
+        }
+
+        [TestMethod]
+        public void CallTreeRefactoringDoesNotTouchVoidMethods()
+        {
+            var oldSource = string.Format(FormatCode, @"
+public void FirstLevelUp()
+{
+    Test().Wait();
+}
+
+public int Test()
+{
+    var test = new AsyncClass();
+    return test.Call().Result;
+}", string.Empty);
+            var newSource = string.Format(FormatCode, @"
+public void FirstLevelUp()
+{
+    Test().Wait();
+}
+
+public async System.Threading.Tasks.Task<int> Test()
+{
+    var test = new AsyncClass();
+    return await test.Call();
+}", string.Empty);
+            VerifyCSharpFix(oldSource, newSource);
         }
 
         [TestMethod]

@@ -26,6 +26,12 @@ namespace Asyncify
                 return false;
             }
 
+            var method = memberAccessExpression.FirstAncestorOrSelf<MethodDeclarationSyntax>();
+            if (method.HasOutOrRefParameters())
+            {
+                return false;
+            }
+
             var symbol = FindSymbol(memberAccessExpression.Expression);
             if (symbol == null)
             {

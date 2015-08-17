@@ -53,6 +53,33 @@ namespace Asyncify.Test
         }
 
         [TestMethod]
+        public void CanFindViolationInMethodUsingTap()
+        {
+            var expected = GetResultWithLocation(10, 22);
+            VerifyCodeWithReturn(@"
+    public async Task Test()
+    {
+        var temp = CallAsync();
+        var result = temp.Result;
+
+        var temp2 = CallAsync();    
+        var result2 = await temp2;
+    }", expected);
+        }
+
+        [TestMethod]
+        public void DoesNotViolateOnMethodsWithOutOrRef()
+        {
+            VerifyCodeWithReturn(@"
+    public void Test(out string test)
+    {
+        test = string.Empty;
+        var temp = CallAsync();
+        var result = temp.Result;
+    }", EmptyExpectedResults);
+        }
+
+        [TestMethod]
         public void CanFindMethodNotUsingTapWithVariableInBraces()
         {
             var expected = GetResultWithLocation(10, 22);

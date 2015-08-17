@@ -28,7 +28,7 @@ namespace Asyncify
             taskSymbol = new Lazy<ITypeSymbol>(() => semanticModel.Compilation.GetTypeByMetadataName(typeof(Task).FullName));
             taskOfTSymbol = new Lazy<ITypeSymbol>(() => semanticModel.Compilation.GetTypeByMetadataName(typeof(Task).FullName + "`1"));
 
-            if (MethodReturnsTask(method))
+            if (method.HasOutOrRefParameters())
             {
                 return false;
             }
