@@ -110,31 +110,18 @@ namespace Asyncify.Test
         }
 
         [TestMethod]
-        public void CallTreeRefactoringDoesNotTouchVoidMethods()
+        public void NoViolationOnAsyncMethodsWrappedInVoidCall()
         {
-            var oldSource = string.Format(FormatCode, @"
+            VerifyCSharpDiagnostic(string.Format(FormatCode, @"
 public void FirstLevelUp()
 {
     Test().Wait();
 }
 
-public int Test()
+public Task Test()
 {
-    var test = new AsyncClass();
-    return test.Call().Result;
-}", string.Empty);
-            var newSource = string.Format(FormatCode, @"
-public void FirstLevelUp()
-{
-    Test().Wait();
-}
-
-public async System.Threading.Tasks.Task<int> Test()
-{
-    var test = new AsyncClass();
-    return await test.Call();
-}", string.Empty);
-            VerifyCSharpFix(oldSource, newSource);
+    return Task.FromResult(0);
+}", string.Empty), EmptyExpectedResults);
         }
 
         [TestMethod]

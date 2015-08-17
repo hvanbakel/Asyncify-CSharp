@@ -90,7 +90,9 @@ namespace Asyncify
                     var trackedRoot = callerRoot.TrackNodes(referencesInDocument);
                     var callingNode = trackedRoot.GetCurrentNode(referencesInDocument[i]);
 
-                    var invocation = (InvocationExpressionSyntax) callingNode.Parent;
+                    var invocation = callingNode.Parent as InvocationExpressionSyntax;
+                    if (invocation == null)
+                        continue;//Broken code case
 
                     if (invocation.FirstAncestorOrSelf<AwaitExpressionSyntax>() == null)
                     {

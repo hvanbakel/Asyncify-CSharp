@@ -20,7 +20,7 @@ namespace Asyncify
         internal bool ShouldUseTap(InvocationExpressionSyntax invocation)
         {
             var method = invocation.FirstAncestorOrSelf<MethodDeclarationSyntax>();
-            if (invocation.IsWrappedInAwaitExpression() || method == null)
+            if (invocation.IsWrappedInAwaitExpression() || method == null || IsFollowedByCallReturningVoid(invocation))
             {
                 return false;
             }
@@ -34,8 +34,23 @@ namespace Asyncify
             }
 
             var symbolToCheck = semanticModel.GetSymbolInfo(invocation).Symbol as IMethodSymbol;
+            if (symbolToCheck == null)
+                return false;//Broken code case
 
             return IsAwaitableMethod(symbolToCheck) && InvocationCallsIsWrappedInResultCall(invocation, symbolToCheck);
+        }
+
+        private bool IsFollowedByCallReturningVoid(InvocationExpressionSyntax invocation)
+        {
+            var parentMemberAccess = invocation.Parent as MemberAccessExpressionSyntax;
+            var parentIdentifier = parentMemberAccess?.Name as IdentifierNameSyntax;
+            if (parentIdentifier == null)
+            {
+                return false;
+            }
+
+            var symbol = semanticModel.GetSymbolInfo(parentIdentifier).Symbol as IMethodSymbol;
+            return symbol?.ReturnType.SpecialType == SpecialType.System_Void;
         }
 
         private bool InvocationCallsIsWrappedInResultCall(InvocationExpressionSyntax invocation, IMethodSymbol invokedMethodSymbol)
