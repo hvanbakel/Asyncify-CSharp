@@ -7,6 +7,11 @@ namespace Asyncify
 {
     internal static class ExtensionMethods
     {
+        internal static bool IsWrappedInLock(this SyntaxNode node)
+        {
+            return node?.FirstAncestorOrSelf<LockStatementSyntax>() != null;
+        }
+
         internal static bool IsWrappedInAwaitExpression(this SyntaxNode node)
         {
             return node?.FirstAncestorOrSelf<AwaitExpressionSyntax>() != null;

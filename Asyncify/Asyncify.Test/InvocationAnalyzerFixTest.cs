@@ -24,6 +24,30 @@ namespace Asyncify.Test
     }", EmptyExpectedResults);
         }
 
+        //No diagnostics expected to show up
+        [TestMethod]
+        public void DoesNotViolateOnNonTapUseWithinLock()
+        {
+            VerifyCodeWithReturn(@"
+    public async Task Test()
+    {
+        var obj = new object();
+        lock(obj)
+        {
+            var result = CallAsync().Result;
+        }
+    }", EmptyExpectedResults);
+            VerifyCodeWithReturn(@"
+    public async Task Test()
+    {
+        var obj = new object();
+        lock(obj)
+        {
+            CallAsync();
+        }
+    }", EmptyExpectedResults);
+        }
+
         [TestMethod]
         public void CanFindMethodNotUsingTap()
         {

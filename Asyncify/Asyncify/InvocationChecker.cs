@@ -20,7 +20,7 @@ namespace Asyncify
         internal bool ShouldUseTap(InvocationExpressionSyntax invocation)
         {
             var method = invocation.FirstAncestorOrSelf<MethodDeclarationSyntax>();
-            if (invocation.IsWrappedInAwaitExpression() || method == null || IsFollowedByCallReturningVoid(invocation))
+            if (invocation.IsWrappedInAwaitExpression() || invocation.IsWrappedInLock() || method == null || IsFollowedByCallReturningVoid(invocation))
             {
                 return false;
             }

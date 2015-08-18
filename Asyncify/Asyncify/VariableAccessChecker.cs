@@ -15,7 +15,7 @@ namespace Asyncify
 
         public bool ShouldUseTap(MemberAccessExpressionSyntax memberAccessExpression)
         {
-            if (memberAccessExpression.IsWrappedInAwaitExpression())
+            if (memberAccessExpression.IsWrappedInAwaitExpression() || memberAccessExpression.IsWrappedInLock())
             {
                 return false;
             }

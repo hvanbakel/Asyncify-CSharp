@@ -68,6 +68,21 @@ namespace Asyncify.Test
         }
 
         [TestMethod]
+        public void DoesNotViolateOnLackOfTapUseWithinLock()
+        {
+            VerifyCodeWithReturn(@"
+    public void Test()
+    {
+        var obj = new object();
+        lock(obj)
+        {
+            var temp = CallAsync();
+            var result = temp.Result;
+        }
+    }", EmptyExpectedResults);
+        }
+
+        [TestMethod]
         public void DoesNotViolateOnMethodsWithOutOrRef()
         {
             VerifyCodeWithReturn(@"
