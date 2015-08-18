@@ -112,10 +112,18 @@ namespace Asyncify
                         var fixProvider = new InvocationFixProvider();
                         var lambda = invocation.FirstAncestorOrSelf<SimpleLambdaExpressionSyntax>();
                         var tempMethod = invocation.FirstAncestorOrSelf<MethodDeclarationSyntax>();
-                        callerRoot = fixProvider.ApplyFix(ref tempMethod, invocation, trackedRoot);
+                        var hasOutOrRefParameters = tempMethod.HasOutOrRefParameters();
+                        if (hasOutOrRefParameters)
+                        {
+                            callerRoot = WrapInvocationInResultCall(invocation, trackedRoot);
+                        }
+                        else
+                        {
+                            callerRoot = fixProvider.ApplyFix(ref tempMethod, invocation, trackedRoot);
+                        }
 
                         //Check for a lambda, if we're refactoring a lambda, we don't need to update the signature of the method
-                        if (lambda == null)
+                        if (lambda == null && !hasOutOrRefParameters)
                         {
                             callerRoot = FixMethodSignature(ref tempMethod, returnTypeSymbols[i], callerRoot);
                         }
@@ -135,11 +143,19 @@ namespace Asyncify
             return solution;
         }
 
+        private static SyntaxNode WrapInvocationInResultCall(InvocationExpressionSyntax invocation, SyntaxNode trackedRoot)
+        {
+            var newMemberAccess = MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression, invocation,
+                IdentifierName("Result"));
+
+            return trackedRoot.ReplaceNode(invocation, newMemberAccess);
+        }
+
         private static async Task<Solution> RecurseUpCallTree(Solution solution, SyntaxNode[] referencesInDocument,
             Document document, CancellationToken cancellationToken)
         {
             var refactoredMethods = referencesInDocument.Select(x => x.FirstAncestorOrSelf<MethodDeclarationSyntax>()).ToArray();
-            foreach (var refactoredMethod in refactoredMethods)
+            foreach (var refactoredMethod in refactoredMethods.Where(x => !x.HasOutOrRefParameters()))
             {
                 solution = await FixCallingMembersAsync(solution, solution.GetDocument(document.Id), refactoredMethod, cancellationToken);
             }

@@ -186,6 +186,48 @@ public async System.Threading.Tasks.Task<int> Test()
             VerifyCSharpFix(oldSource, newSource);
         }
 
+
+
+        [TestMethod]
+        public void FixIsAppliedUpCallTreeStopsAtOutRefParams()
+        {
+            var oldSource = string.Format(FormatCode, @"
+public int SecondLevelUp(out string test)
+{
+    test = string.Empty;
+    return FirstLevelUp();
+}
+
+public int FirstLevelUp()
+{
+    return Test();
+}
+
+public int Test()
+{
+    var test = new AsyncClass();
+    return test.Call().Result;
+}", string.Empty);
+            var newSource = string.Format(FormatCode, @"
+public int SecondLevelUp(out string test)
+{
+    test = string.Empty;
+    return FirstLevelUp().Result;
+}
+
+public async System.Threading.Tasks.Task<int> FirstLevelUp()
+{
+    return await Test();
+}
+
+public async System.Threading.Tasks.Task<int> Test()
+{
+    var test = new AsyncClass();
+    return await test.Call();
+}", string.Empty);
+            VerifyCSharpFix(oldSource, newSource);
+        }
+
         [TestMethod]
         public void TestCodeFixWithReturnType()
         {
