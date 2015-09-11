@@ -5,7 +5,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 namespace Asyncify.Test
 {
     [TestClass]
-    public class InvocationAnalyzerFixTest : BasAnalyzerFixTest
+    public class InvocationAnalyzerFixTest : BaseAnalyzerFixTest
     {
 
         //No diagnostics expected to show up

@@ -5,7 +5,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 namespace Asyncify.Test
 {
     [TestClass]
-    public class VariableAccessAnalyzerFixTest : BasAnalyzerFixTest
+    public class VariableAccessAnalyzerFixTest : BaseAnalyzerFixTest
     {
         [TestMethod]
         public void CanFindMethodNotUsingTapWithVariable()

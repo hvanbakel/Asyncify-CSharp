@@ -102,7 +102,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="BasAnalyzerFixTest.cs" />
+    <Compile Include="BaseAnalyzerFixTest.cs" />
     <Compile Include="VariableAccessAnalyzerFixTest.cs" />
     <Compile Include="Verifiers\CodeFixVerifier.cs" />
     <Compile Include="Verifiers\DiagnosticVerifier.cs" />
