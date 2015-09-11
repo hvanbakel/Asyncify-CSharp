@@ -19,7 +19,7 @@ namespace Asyncify
 
         protected override SyntaxNode ApplyFix(ref MethodDeclarationSyntax method, InvocationExpressionSyntax invocation, SyntaxNode syntaxRoot)
         {
-            var lambda = invocation.FirstAncestorOrSelf<SimpleLambdaExpressionSyntax>();
+            var lambda = invocation.FirstAncestorOrSelf<LambdaExpressionSyntax>();
             var nodesToTrack = new List<SyntaxNode> {method, invocation};
             if (lambda != null)
             {
@@ -27,7 +27,7 @@ namespace Asyncify
             }
             var trackedRoot = syntaxRoot.TrackNodes(nodesToTrack);
             SyntaxNode oldNode = trackedRoot.GetCurrentNode(invocation);
-            SyntaxNode newNode = AwaitExpression(invocation.WithLeadingTrivia(Space));
+            CSharpSyntaxNode newNode = AwaitExpression(invocation.WithLeadingTrivia(Space));
 
             SyntaxNode node = oldNode.Parent;
             while (node != null)
@@ -53,7 +53,7 @@ namespace Asyncify
             if (lambda != null)
             {
                 lambda = trackedRoot.GetCurrentNode(lambda);
-                syntaxRoot = FixLambda(trackedRoot, lambda, (ExpressionSyntax) oldNode, newNode);
+                syntaxRoot = LambdaFixProvider.FixLambda(trackedRoot, lambda, newNode);
             }
             else
             {
@@ -61,16 +61,6 @@ namespace Asyncify
                 method = syntaxRoot.GetCurrentNode(method);
             }
             return syntaxRoot;
-        }
-
-        private SyntaxNode FixLambda(SyntaxNode root, SimpleLambdaExpressionSyntax lambda, ExpressionSyntax oldNode, SyntaxNode newNode)
-        {
-            var newLambda = lambda
-                .WithAsyncKeyword(Token(SyntaxKind.AsyncKeyword).WithTrailingTrivia(Space))
-                .WithBody(lambda.Body.ReplaceNode(oldNode, newNode));
-
-            return root.ReplaceNode(lambda, newLambda);
-
         }
     }
 }

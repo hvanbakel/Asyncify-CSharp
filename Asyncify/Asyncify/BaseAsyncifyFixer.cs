@@ -51,7 +51,7 @@ namespace Asyncify
 
             syntaxRoot = ApplyFix(ref method, nodeToFix, syntaxRoot);
 
-            var lambda = nodeToFix.FirstAncestorOrSelf<SimpleLambdaExpressionSyntax>();
+            var lambda = nodeToFix.FirstAncestorOrSelf<LambdaExpressionSyntax>();
             Solution newSolution;
             if (lambda == null)
             {
