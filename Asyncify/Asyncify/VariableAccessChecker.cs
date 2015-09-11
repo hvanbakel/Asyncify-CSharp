@@ -30,7 +30,7 @@ namespace Asyncify
             if (lambdaExpression == null)
             {
                 var methodDeclaration = memberAccessExpression.FirstAncestorOrSelf<MethodDeclarationSyntax>();
-                if (methodDeclaration.HasOutOrRefParameters())
+                if (methodDeclaration == null || methodDeclaration.HasOutOrRefParameters())
                 {
                     return false;
                 }
