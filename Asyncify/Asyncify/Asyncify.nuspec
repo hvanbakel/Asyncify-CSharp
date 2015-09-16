@@ -14,6 +14,8 @@ The analyzer allows large codebases to be easily modified to use the TAP model b
     <projectUrl>https://github.com/hvanbakel/Asyncify-CSharp</projectUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <releaseNotes>
+      --- 0.9.7
+      Added interface refactoring
       --- 0.9.6
       Bugfix for invocation not calling .Result
       Bugfix for .Result calls outside of a method
