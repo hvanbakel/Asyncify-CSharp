@@ -2,7 +2,7 @@ using TestHelper;
 
 namespace Asyncify.Test
 {
-    public abstract class BasAnalyzerFixTest : CodeFixVerifier
+    public abstract class BaseAnalyzerFixTest : CodeFixVerifier
     {
         public abstract string DiagnosticId { get; }
 

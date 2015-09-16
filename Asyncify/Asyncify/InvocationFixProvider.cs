@@ -17,14 +17,10 @@ namespace Asyncify
 
         public sealed override ImmutableArray<string> FixableDiagnosticIds => ImmutableArray.Create(InvocationAnalyzer.DiagnosticId);
 
-        protected override SyntaxNode ApplyFix(ref MethodDeclarationSyntax method, InvocationExpressionSyntax invocation, SyntaxNode syntaxRoot)
+        protected override SyntaxNode ApplyFix(MethodDeclarationSyntax method, InvocationExpressionSyntax invocation, SyntaxNode syntaxRoot)
         {
-            var lambda = invocation.FirstAncestorOrSelf<SimpleLambdaExpressionSyntax>();
-            var nodesToTrack = new List<SyntaxNode> {method, invocation};
-            if (lambda != null)
-            {
-                nodesToTrack.Add(lambda);
-            }
+            var lambda = invocation.FirstAncestorOrSelf<LambdaExpressionSyntax>();
+
             SyntaxNode oldNode = invocation;
             SyntaxNode newNode = AwaitExpression(invocation.WithLeadingTrivia(Space));
 
@@ -51,9 +47,8 @@ namespace Asyncify
 
             if (lambda != null)
             {
-                return method.ReplaceNode(lambda, lambda
-                    .WithAsyncKeyword(Token(SyntaxKind.AsyncKeyword).WithTrailingTrivia(Space))
-                    .WithBody(lambda.Body.ReplaceNode(oldNode, newNode)));
+                var newLambda = LambdaFixProvider.FixLambda(method, lambda, lambda.Body.ReplaceNode(oldNode, newNode));
+                return method.ReplaceNode(method, newLambda);
             }
             else
             {

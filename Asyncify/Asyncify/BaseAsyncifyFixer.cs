@@ -48,9 +48,9 @@ namespace Asyncify
             
             var method = nodeToFix.FirstAncestorOrSelf<MethodDeclarationSyntax>();
             var returnTypeSymbol = semanticModel.GetDeclaredSymbol(method).ReturnType;
-            var newMethod = ApplyFix(ref method, nodeToFix, syntaxRoot);
+            var newMethod = this.ApplyFix(method, nodeToFix, syntaxRoot);
 
-            var lambda = nodeToFix.FirstAncestorOrSelf<SimpleLambdaExpressionSyntax>();
+            var lambda = nodeToFix.FirstAncestorOrSelf<LambdaExpressionSyntax>();
             Solution newSolution = document.Project.Solution;
             if (lambda == null)
             {
@@ -171,7 +171,7 @@ namespace Asyncify
                         }
                         else
                         {
-                            var newMethod = fixProvider.ApplyFix(ref tempMethod, invocation, trackedRoot);
+                            var newMethod = fixProvider.ApplyFix(tempMethod, invocation, trackedRoot);
                             callerRoot = trackedRoot.ReplaceNode(tempMethod, newMethod);
                             tempMethod = RefindMethod(tempMethod, callerRoot);
                         }
@@ -271,6 +271,6 @@ namespace Asyncify
                     (x.ParameterList == method.ParameterList || x.ParameterList.ToFullString() == method.ParameterList.ToFullString()));
         }
 
-        protected abstract SyntaxNode ApplyFix(ref MethodDeclarationSyntax method, TSyntaxType node, SyntaxNode syntaxRoot);
+        protected abstract SyntaxNode ApplyFix(MethodDeclarationSyntax method, TSyntaxType node, SyntaxNode syntaxRoot);
     }
 }

@@ -5,7 +5,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 namespace Asyncify.Test
 {
     [TestClass]
-    public class VariableAccessAnalyzerFixTest : BasAnalyzerFixTest
+    public class VariableAccessAnalyzerFixTest : BaseAnalyzerFixTest
     {
         [TestMethod]
         public void CanFindMethodNotUsingTapWithVariable()
@@ -92,6 +92,32 @@ namespace Asyncify.Test
         var temp = CallAsync();
         var result = temp.Result;
     }", EmptyExpectedResults);
+        }
+
+        [TestMethod]
+        public void CanFixVariableAccessInLambda()
+        {
+            VerifyCodeFixWithReturn(@"
+    public void Test(out string outVariable)
+    {
+        System.Action test = () =>
+        {
+            var t = Task.FromResult(100);
+            var result = t.Result;
+        };
+
+        outVariable = string.Empty;
+    }", @"
+    public void Test(out string outVariable)
+    {
+        System.Action test = async () =>
+        {
+            var t = Task.FromResult(100);
+            var result = await t;
+        };
+
+        outVariable = string.Empty;
+    }", GetResultWithLocation(13, 26));
         }
 
         [TestMethod]

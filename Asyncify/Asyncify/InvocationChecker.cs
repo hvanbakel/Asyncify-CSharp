@@ -37,7 +37,7 @@ namespace Asyncify
             if (symbolToCheck == null)
                 return false;//Broken code case
 
-            return IsAwaitableMethod(symbolToCheck) && InvocationCallsIsWrappedInResultCall(invocation, symbolToCheck);
+            return IsAwaitableMethod(symbolToCheck) && this.InvocationCallsIsWrappedInResultCall(invocation);
         }
 
         private bool IsFollowedByCallReturningVoid(InvocationExpressionSyntax invocation)
@@ -53,13 +53,8 @@ namespace Asyncify
             return symbol?.ReturnType.SpecialType == SpecialType.System_Void;
         }
 
-        private bool InvocationCallsIsWrappedInResultCall(InvocationExpressionSyntax invocation, IMethodSymbol invokedMethodSymbol)
+        private bool InvocationCallsIsWrappedInResultCall(InvocationExpressionSyntax invocation)
         {
-            if (invokedMethodSymbol.ReturnType.Equals(taskSymbol.Value))
-            {
-                return true;
-            }
-
             SyntaxNode node = invocation;
             while (node.Parent != null)
             {
@@ -73,11 +68,6 @@ namespace Asyncify
                 }
             }
             return false;
-        }
-
-        private bool MethodReturnsTask(MethodDeclarationSyntax method)
-        {
-            return IsTask(semanticModel.GetTypeInfo(method.ReturnType).Type as INamedTypeSymbol);
         }
 
         private bool IsAwaitableMethod(IMethodSymbol invokedSymbol)

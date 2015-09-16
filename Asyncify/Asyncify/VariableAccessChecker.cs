@@ -26,10 +26,14 @@ namespace Asyncify
                 return false;
             }
 
-            var method = memberAccessExpression.FirstAncestorOrSelf<MethodDeclarationSyntax>();
-            if (method.HasOutOrRefParameters())
+            var lambdaExpression = memberAccessExpression.FirstAncestorOrSelf<LambdaExpressionSyntax>();
+            if (lambdaExpression == null)
             {
-                return false;
+                var methodDeclaration = memberAccessExpression.FirstAncestorOrSelf<MethodDeclarationSyntax>();
+                if (methodDeclaration == null || methodDeclaration.HasOutOrRefParameters())
+                {
+                    return false;
+                }
             }
 
             var symbol = FindSymbol(memberAccessExpression.Expression);
@@ -59,7 +63,7 @@ namespace Asyncify
                 var castExpression = expression as CastExpressionSyntax;
                 if (castExpression != null)
                 {
-                    return ModelExtensions.GetTypeInfo(semanticModel, castExpression.Type).Type as INamedTypeSymbol;
+                    return semanticModel.GetTypeInfo(castExpression.Type).Type as INamedTypeSymbol;
                 }
 
                 if (expression is InvocationExpressionSyntax)//Handled by invocationanalzyer
@@ -67,7 +71,8 @@ namespace Asyncify
                     return null;
                 }
 
-                return ((ILocalSymbol) ModelExtensions.GetSymbolInfo(semanticModel, expression).Symbol).Type as INamedTypeSymbol;
+                var localSymbol = semanticModel.GetSymbolInfo(expression).Symbol as ILocalSymbol;
+                return localSymbol?.Type as INamedTypeSymbol;
             }
         }
     }

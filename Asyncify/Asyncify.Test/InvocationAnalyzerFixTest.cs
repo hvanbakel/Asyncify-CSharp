@@ -5,7 +5,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 namespace Asyncify.Test
 {
     [TestClass]
-    public class InvocationAnalyzerFixTest : BasAnalyzerFixTest
+    public class InvocationAnalyzerFixTest : BaseAnalyzerFixTest
     {
         //No diagnostics expected to show up
         [TestMethod]
@@ -55,12 +55,6 @@ namespace Asyncify.Test
     {
         var result = CallAsync().Result;
     }", GetResultWithLocation(10, 22));
-            VerifyCodeNoReturn(@"
-    public void Test()
-    {
-        CallAsync();
-    }", GetResultWithLocation(10, 9));
-
             VerifyCodeFixWithReturn(@"
     public void Test()
     {
@@ -70,15 +64,6 @@ namespace Asyncify.Test
     {
         var result = await CallAsync();
     }", GetResultWithLocation(10, 22));
-            VerifyCodeFixNoReturn(@"
-    public void Test()
-    {
-        CallAsync();
-    }", @"
-    public async System.Threading.Tasks.Task Test()
-    {
-        await CallAsync();
-    }", GetResultWithLocation(10, 9));
         }
 
         [TestMethod]
@@ -270,13 +255,13 @@ public async System.Threading.Tasks.Task Test()
 public void Test()
 {
     int[] bla = null;
-    bla.Select(x => Task.Delay(100));
+    bla.Select(x => Task.FromResult(100).Result);
 }", string.Empty);
             var newSource = string.Format(FormatCode, @"
 public void Test()
 {
     int[] bla = null;
-    bla.Select(async x => await Task.Delay(100));
+    bla.Select(async x => await Task.FromResult(100));
 }", string.Empty);
             VerifyCSharpFix(oldSource, newSource);
         }
