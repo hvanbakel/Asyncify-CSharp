@@ -48,25 +48,77 @@ namespace Asyncify
             
             var method = nodeToFix.FirstAncestorOrSelf<MethodDeclarationSyntax>();
             var returnTypeSymbol = semanticModel.GetDeclaredSymbol(method).ReturnType;
-
-            syntaxRoot = ApplyFix(ref method, nodeToFix, syntaxRoot);
+            var newMethod = ApplyFix(ref method, nodeToFix, syntaxRoot);
 
             var lambda = nodeToFix.FirstAncestorOrSelf<SimpleLambdaExpressionSyntax>();
-            Solution newSolution;
+            Solution newSolution = document.Project.Solution;
             if (lambda == null)
             {
-                syntaxRoot = FixMethodSignature(ref method, returnTypeSymbol, syntaxRoot);
 
-                newSolution = document.Project.Solution.WithDocumentSyntaxRoot(document.Id, syntaxRoot);
+                document = newSolution.GetDocument(document.Id);
+                var matchingMembers = await FindImplementedInterfaceMembers(document, method);
+                foreach (var matchingMember in matchingMembers)
+                {
+                    var interfaceDoc = document.Project.Solution.GetDocument(matchingMember.SyntaxTree);
+                    newSolution = await FixSignatureAndCallers(matchingMember, interfaceDoc, returnTypeSymbol, cancellationToken);
+                }
 
-                var newDocument = newSolution.GetDocument(document.Id);
-                newSolution = await FixCallingMembersAsync(newSolution, newDocument, method, cancellationToken);
+                document = newSolution.GetDocument(document.Id);
+                syntaxRoot = await document.GetSyntaxRootAsync(cancellationToken);
+                method = RefindMethod(method, syntaxRoot);
+                syntaxRoot = syntaxRoot.ReplaceNode(method, newMethod);
+                newSolution = newSolution.WithDocumentSyntaxRoot(document.Id, syntaxRoot);
+
+                document = newSolution.GetDocument(document.Id);
+                syntaxRoot = await document.GetSyntaxRootAsync(cancellationToken);
+                method = RefindMethod(method, syntaxRoot);
+                newSolution = await FixSignatureAndCallers(method, document, returnTypeSymbol, cancellationToken);
             }
             else
             {
+                syntaxRoot = syntaxRoot.ReplaceNode(method, newMethod);
                 newSolution = document.Project.Solution.WithDocumentSyntaxRoot(document.Id, syntaxRoot);
             }
 
+            return newSolution;
+        }
+
+        private static async Task<MethodDeclarationSyntax[]> FindImplementedInterfaceMembers(Document document,
+            MethodDeclarationSyntax method)
+        {
+            var semanticModel = await document.GetSemanticModelAsync();
+            var syntaxRoot = await document.GetSyntaxRootAsync();
+
+            method = RefindMethod(method, syntaxRoot);
+            var symbol = semanticModel.GetDeclaredSymbol(method);
+            var type = symbol.ContainingType;
+            var matchingMembers = type.AllInterfaces
+                .SelectMany(x => x.GetMembers(method.Identifier.ValueText).OfType<IMethodSymbol>())
+                .Select(x =>
+                {
+                    var implementedSymbol = type.FindImplementationForInterfaceMember(x);
+                    if (implementedSymbol != null)
+                    {
+                        return x;
+                    }
+                    return null;
+                })
+                .Where(x => x != null)
+                .Select(x => x.DeclaringSyntaxReferences.First().GetSyntax() as MethodDeclarationSyntax)
+                .ToArray();
+            return matchingMembers;
+        }
+
+        private static async Task<Solution> FixSignatureAndCallers(MethodDeclarationSyntax method, Document document, ITypeSymbol returnTypeSymbol, CancellationToken cancellationToken)
+        {
+            var syntaxRoot = await document.GetSyntaxRootAsync(cancellationToken);
+            method = RefindMethod(method, syntaxRoot);
+            syntaxRoot = FixMethodSignature(ref method, returnTypeSymbol, syntaxRoot);
+            
+            var newSolution = document.Project.Solution.WithDocumentSyntaxRoot(document.Id, syntaxRoot);
+
+            var newDocument = newSolution.GetDocument(document.Id);
+            newSolution = await FixCallingMembersAsync(newSolution, newDocument, method, cancellationToken);
             return newSolution;
         }
 
@@ -102,7 +154,7 @@ namespace Asyncify
                     //Get the current node from the tracking system
                     var callingNode = trackedRoot.GetCurrentNode(referencesInDocument[i]);
 
-                    var invocation = callingNode.Parent as InvocationExpressionSyntax;
+                    var invocation = callingNode.FirstAncestorOrSelf<InvocationExpressionSyntax>();
                     if (invocation == null)
                         continue;//Broken code case
 
@@ -119,7 +171,9 @@ namespace Asyncify
                         }
                         else
                         {
-                            callerRoot = fixProvider.ApplyFix(ref tempMethod, invocation, trackedRoot);
+                            var newMethod = fixProvider.ApplyFix(ref tempMethod, invocation, trackedRoot);
+                            callerRoot = trackedRoot.ReplaceNode(tempMethod, newMethod);
+                            tempMethod = RefindMethod(tempMethod, callerRoot);
                         }
 
                         //Check for a lambda, if we're refactoring a lambda, we don't need to update the signature of the method
@@ -191,13 +245,30 @@ namespace Asyncify
             }
 
             var newMethod = method
-                    .WithReturnType(typeSyntax.WithTrailingTrivia(Space))
-                    .AddModifiers(Token(SyntaxKind.AsyncKeyword).WithTrailingTrivia(Space));
+                    .WithReturnType(typeSyntax.WithTrailingTrivia(Space));
 
+            if (method.FirstAncestorOrSelf<InterfaceDeclarationSyntax>() == null)
+            {
+                newMethod = newMethod.AddModifiers(Token(SyntaxKind.AsyncKeyword).WithTrailingTrivia(Space));
+            }
+
+            //var trackedRoot = syntaxRoot.TrackNodes(method);
+            //var tempRoot = trackedRoot.ReplaceNode(typeSyntax, typeSyntax.WithTrailingTrivia(Space));
+            //var temp = tempRoot.GetCurrentNode(method);
 
             syntaxRoot = syntaxRoot.ReplaceNode(method, newMethod);
-            method = syntaxRoot.FindNode(method.GetLocation().SourceSpan) as MethodDeclarationSyntax;
+            method = RefindMethod(method, syntaxRoot);
             return syntaxRoot;
+        }
+
+        private static MethodDeclarationSyntax RefindMethod(MethodDeclarationSyntax method, SyntaxNode syntaxRoot)
+        {
+            return syntaxRoot
+                .DescendantNodes()
+                .OfType<MethodDeclarationSyntax>()
+                .Single(x => 
+                    x.Identifier.ValueText == method.Identifier.ValueText && 
+                    (x.ParameterList == method.ParameterList || x.ParameterList.ToFullString() == method.ParameterList.ToFullString()));
         }
 
         protected abstract SyntaxNode ApplyFix(ref MethodDeclarationSyntax method, TSyntaxType node, SyntaxNode syntaxRoot);

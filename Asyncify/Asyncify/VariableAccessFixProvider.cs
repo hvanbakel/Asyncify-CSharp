@@ -17,17 +17,15 @@ namespace Asyncify
 
         protected override SyntaxNode ApplyFix(ref MethodDeclarationSyntax method, MemberAccessExpressionSyntax variableAccess, SyntaxNode syntaxRoot)
         {
-            var trackedRoot = syntaxRoot.TrackNodes(method, variableAccess);
-            var trackedVariableAccess = trackedRoot.GetCurrentNode(variableAccess);
             ExpressionSyntax newAccess = AwaitExpression(variableAccess.Expression.WithLeadingTrivia(Space));
             if (variableAccess.Parent is MemberAccessExpressionSyntax)
             {
                 newAccess = ParenthesizedExpression(newAccess);
             }
 
-            syntaxRoot = trackedRoot.ReplaceNode(trackedVariableAccess, newAccess);
-            method = syntaxRoot.GetCurrentNode(method);
-            return syntaxRoot;
+            var resultNode = method.ReplaceNode(variableAccess, newAccess);
+            method = resultNode;
+            return resultNode;
         }
     }
 }

@@ -7,7 +7,6 @@ namespace Asyncify.Test
     [TestClass]
     public class InvocationAnalyzerFixTest : BasAnalyzerFixTest
     {
-
         //No diagnostics expected to show up
         [TestMethod]
         public void DoesNotViolateOnCorrectUseOfTap()
@@ -298,6 +297,70 @@ public async System.Threading.Tasks.Task Test()
     var result = (await test.Call()).ToString();
 }", string.Empty);
             VerifyCSharpFix(oldSource, newSource);
+        }
+
+        [TestMethod]
+        public void TestRefactoringOverInterfaces()
+        {
+            VerifyCSharpFix(@"
+using System.Threading.Tasks;
+
+public class ConsumingClass
+{
+    public int Test(IInterface i)
+    {
+        return i.Call();
+    }
+}
+
+public interface IInterface
+{
+    int Call();
+}
+
+
+public class DerivedClass : IInterface
+{
+    public int Call()
+    {
+        return AsyncMethod().Result;
+    }
+
+    public Task<int> AsyncMethod()
+    {
+        return Task.FromResult(0);
+    }
+}
+", @"
+using System.Threading.Tasks;
+
+public class ConsumingClass
+{
+    public async System.Threading.Tasks.Task<int> Test(IInterface i)
+    {
+        return await i.Call();
+    }
+}
+
+public interface IInterface
+{
+System.Threading.Tasks.Task<int> Call();
+}
+
+
+public class DerivedClass : IInterface
+{
+    public async System.Threading.Tasks.Task<int> Call()
+    {
+        return await AsyncMethod();
+    }
+
+    public Task<int> AsyncMethod()
+    {
+        return Task.FromResult(0);
+    }
+}
+");
         }
 
         protected override CodeFixProvider GetCSharpCodeFixProvider()
