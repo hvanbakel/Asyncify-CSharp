@@ -285,6 +285,34 @@ public async System.Threading.Tasks.Task Test()
         }
 
         [TestMethod]
+        public void WillAddAsyncToVoidMethodInCodefix()
+        {
+            var oldSource = string.Format(FormatCode, @"
+public void VoidCallingMethod()
+{
+    Test();
+}
+
+public void Test()
+{
+    var test = new AsyncClass();
+    var result = test.Call().Result;
+}", string.Empty);
+            var newSource = string.Format(FormatCode, @"
+public async System.Threading.Tasks.Task VoidCallingMethod()
+{
+        await Test();
+}
+
+public async System.Threading.Tasks.Task Test()
+{
+    var test = new AsyncClass();
+    var result = await test.Call();
+}", string.Empty);
+            VerifyCSharpFix(oldSource, newSource);
+        }
+        
+        [TestMethod]
         public void TestRefactoringOverInterfaces()
         {
             VerifyCSharpFix(@"
