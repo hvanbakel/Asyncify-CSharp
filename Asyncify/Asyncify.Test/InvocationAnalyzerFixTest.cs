@@ -267,6 +267,34 @@ public void Test()
         }
 
         [TestMethod]
+        public void TestCodeFixWithinParenthesizedLambda()
+        {
+            var oldSource = string.Format(FormatCode, @"
+public void Test()
+{
+    System.Action a = () => CallAsync();
+}
+
+public int CallAsync()
+{
+    return Task.FromResult(0).Result;
+}
+", string.Empty);
+            var newSource = string.Format(FormatCode, @"
+public void Test()
+{
+    System.Action a = async () => await CallAsync();
+}
+
+public async System.Threading.Tasks.Task<int> CallAsync()
+{
+    return await Task.FromResult(0);
+}
+", string.Empty);
+            VerifyCSharpFix(oldSource, newSource);
+        }
+
+        [TestMethod]
         public void FixWillWrapInParenthesesIfNeeded()
         {
             var oldSource = string.Format(FormatCode, @"

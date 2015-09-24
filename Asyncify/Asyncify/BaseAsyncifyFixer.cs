@@ -162,7 +162,7 @@ namespace Asyncify
                     if (invocation.FirstAncestorOrSelf<AwaitExpressionSyntax>() == null)
                     {
                         var fixProvider = new InvocationFixProvider();
-                        var lambda = invocation.FirstAncestorOrSelf<SimpleLambdaExpressionSyntax>();
+                        var lambda = invocation.FirstAncestorOrSelf<LambdaExpressionSyntax>();
                         var tempMethod = invocation.FirstAncestorOrSelf<MethodDeclarationSyntax>();
                         var hasOutOrRefParameters = tempMethod.HasOutOrRefParameters();
                         if (hasOutOrRefParameters)
