@@ -14,30 +14,24 @@ namespace Asyncify
 
         public sealed override ImmutableArray<string> FixableDiagnosticIds => ImmutableArray.Create(VariableAccessAnalyzer.DiagnosticId);
 
-        protected override SyntaxNode ApplyFix(ref MethodDeclarationSyntax method, MemberAccessExpressionSyntax variableAccess, SyntaxNode syntaxRoot)
+        protected override SyntaxNode ApplyFix(MethodDeclarationSyntax method, MemberAccessExpressionSyntax variableAccess, SyntaxNode syntaxRoot)
         {
             ExpressionSyntax newAccess = AwaitExpression(variableAccess.Expression.WithLeadingTrivia(Space));
             if (variableAccess.Parent is MemberAccessExpressionSyntax)
             {
                 newAccess = ParenthesizedExpression(newAccess);
             }
-
             var lambdaExpression = variableAccess.FirstAncestorOrSelf<LambdaExpressionSyntax>();
             if (lambdaExpression != null)
             {
                 var newBody = lambdaExpression.Body.ReplaceNode(variableAccess, newAccess);
-                syntaxRoot = LambdaFixProvider.FixLambda(syntaxRoot, lambdaExpression, newBody);
-
+                var newLambda = LambdaFixProvider.FixLambda(method, lambdaExpression, newBody);
+                return method.ReplaceNode(method, newLambda);
             }
             else
             {
-                var trackedRoot = syntaxRoot.TrackNodes(method, variableAccess);
-                var trackedVariableAccess = trackedRoot.GetCurrentNode(variableAccess);
-
-                syntaxRoot = trackedRoot.ReplaceNode(trackedVariableAccess, newAccess);
-                method = syntaxRoot.GetCurrentNode(method);
+                return method.ReplaceNode(variableAccess, newAccess);
             }
-            return syntaxRoot;
         }
     }
 }

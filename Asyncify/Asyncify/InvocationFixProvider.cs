@@ -17,17 +17,12 @@ namespace Asyncify
 
         public sealed override ImmutableArray<string> FixableDiagnosticIds => ImmutableArray.Create(InvocationAnalyzer.DiagnosticId);
 
-        protected override SyntaxNode ApplyFix(ref MethodDeclarationSyntax method, InvocationExpressionSyntax invocation, SyntaxNode syntaxRoot)
+        protected override SyntaxNode ApplyFix(MethodDeclarationSyntax method, InvocationExpressionSyntax invocation, SyntaxNode syntaxRoot)
         {
             var lambda = invocation.FirstAncestorOrSelf<LambdaExpressionSyntax>();
-            var nodesToTrack = new List<SyntaxNode> {method, invocation};
-            if (lambda != null)
-            {
-                nodesToTrack.Add(lambda);
-            }
-            var trackedRoot = syntaxRoot.TrackNodes(nodesToTrack);
-            SyntaxNode oldNode = trackedRoot.GetCurrentNode(invocation);
-            CSharpSyntaxNode newNode = AwaitExpression(invocation.WithLeadingTrivia(Space));
+
+            SyntaxNode oldNode = invocation;
+            SyntaxNode newNode = AwaitExpression(invocation.WithLeadingTrivia(Space));
 
             SyntaxNode node = oldNode.Parent;
             while (node != null)
@@ -52,15 +47,13 @@ namespace Asyncify
 
             if (lambda != null)
             {
-                lambda = trackedRoot.GetCurrentNode(lambda);
-                syntaxRoot = LambdaFixProvider.FixLambda(trackedRoot, lambda, newNode);
+                var newLambda = LambdaFixProvider.FixLambda(method, lambda, lambda.Body.ReplaceNode(oldNode, newNode));
+                return method.ReplaceNode(method, newLambda);
             }
             else
             {
-                syntaxRoot = trackedRoot.ReplaceNode(oldNode, newNode);
-                method = syntaxRoot.GetCurrentNode(method);
+                return method.ReplaceNode(oldNode, newNode);
             }
-            return syntaxRoot;
         }
     }
 }

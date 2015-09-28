@@ -7,7 +7,6 @@ namespace Asyncify.Test
     [TestClass]
     public class InvocationAnalyzerFixTest : BaseAnalyzerFixTest
     {
-
         //No diagnostics expected to show up
         [TestMethod]
         public void DoesNotViolateOnCorrectUseOfTap()
@@ -268,6 +267,34 @@ public void Test()
         }
 
         [TestMethod]
+        public void TestCodeFixWithinParenthesizedLambda()
+        {
+            var oldSource = string.Format(FormatCode, @"
+public void Test()
+{
+    System.Action a = () => CallAsync();
+}
+
+public int CallAsync()
+{
+    return Task.FromResult(0).Result;
+}
+", string.Empty);
+            var newSource = string.Format(FormatCode, @"
+public void Test()
+{
+    System.Action a = async () => await CallAsync();
+}
+
+public async System.Threading.Tasks.Task<int> CallAsync()
+{
+    return await Task.FromResult(0);
+}
+", string.Empty);
+            VerifyCSharpFix(oldSource, newSource);
+        }
+
+        [TestMethod]
         public void FixWillWrapInParenthesesIfNeeded()
         {
             var oldSource = string.Format(FormatCode, @"
@@ -283,6 +310,98 @@ public async System.Threading.Tasks.Task Test()
     var result = (await test.Call()).ToString();
 }", string.Empty);
             VerifyCSharpFix(oldSource, newSource);
+        }
+
+        [TestMethod]
+        public void WillAddAsyncToVoidMethodInCodefix()
+        {
+            var oldSource = string.Format(FormatCode, @"
+public void VoidCallingMethod()
+{
+    Test();
+}
+
+public void Test()
+{
+    var test = new AsyncClass();
+    var result = test.Call().Result;
+}", string.Empty);
+            var newSource = string.Format(FormatCode, @"
+public async System.Threading.Tasks.Task VoidCallingMethod()
+{
+        await Test();
+}
+
+public async System.Threading.Tasks.Task Test()
+{
+    var test = new AsyncClass();
+    var result = await test.Call();
+}", string.Empty);
+            VerifyCSharpFix(oldSource, newSource);
+        }
+        
+        [TestMethod]
+        public void TestRefactoringOverInterfaces()
+        {
+            VerifyCSharpFix(@"
+using System.Threading.Tasks;
+
+public class ConsumingClass
+{
+    public int Test(IInterface i)
+    {
+        return i.Call();
+    }
+}
+
+public interface IInterface
+{
+    int Call();
+}
+
+
+public class DerivedClass : IInterface
+{
+    public int Call()
+    {
+        return AsyncMethod().Result;
+    }
+
+    public Task<int> AsyncMethod()
+    {
+        return Task.FromResult(0);
+    }
+}
+", @"
+using System.Threading.Tasks;
+
+public class ConsumingClass
+{
+    public async System.Threading.Tasks.Task<int> Test(IInterface i)
+    {
+        return await i.Call();
+    }
+}
+
+public interface IInterface
+{
+System.Threading.Tasks.Task<int> Call();
+}
+
+
+public class DerivedClass : IInterface
+{
+    public async System.Threading.Tasks.Task<int> Call()
+    {
+        return await AsyncMethod();
+    }
+
+    public Task<int> AsyncMethod()
+    {
+        return Task.FromResult(0);
+    }
+}
+");
         }
 
         protected override CodeFixProvider GetCSharpCodeFixProvider()

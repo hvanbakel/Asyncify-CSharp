@@ -2,7 +2,7 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2011/08/nuspec.xsd">
   <metadata>
     <id>Asyncify</id>
-    <version>0.9.6</version>
+    <version>0.9.7</version>
     <title>Asyncify</title>
     <summary>Asncify is an analyzer that allows you to quickly update your code to use the Task Asynchronous Programming model.</summary>
     <description>Asyncify-CSharp is an analyzer and codefix that allows you to quickly update your code to use the Task Asynchronous Programming model. This model, introduced in C# 5, adds an intuitive way of handling asynchronous calls within C#.
@@ -14,6 +14,8 @@ The analyzer allows large codebases to be easily modified to use the TAP model b
     <projectUrl>https://github.com/hvanbakel/Asyncify-CSharp</projectUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <releaseNotes>
+      --- 0.9.7
+      Added interface refactoring
       --- 0.9.6
       Bugfix for invocation not calling .Result
       Bugfix for .Result calls outside of a method
