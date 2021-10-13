@@ -33,11 +33,14 @@ namespace Asyncify
                 return false;
             }
 
-            var symbolToCheck = semanticModel.GetSymbolInfo(invocation).Symbol as IMethodSymbol;
-            if (symbolToCheck == null)
-                return false;//Broken code case
+            //var symbolToCheck = semanticModel.GetSymbolInfo(invocation).Symbol as IMethodSymbol;
+            //if (symbolToCheck == null)
+            //    return false;//Broken code case
 
-            return IsAwaitableMethod(symbolToCheck) && this.InvocationCallsIsWrappedInResultCall(invocation);
+            //bool retVal = IsAwaitableMethod(symbolToCheck) && this.InvocationCallsIsWrappedInResultCall(invocation);
+
+            //UNDONE [iouris] - enable only for methods that have an async equivalent
+            return true;
         }
 
         private bool IsFollowedByCallReturningVoid(InvocationExpressionSyntax invocation)

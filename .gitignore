@@ -66,3 +66,5 @@ packages/
 
 #Test files
 *.testsettings
+/.vs/Asyncify/v16/TestStore/0
+/.vs

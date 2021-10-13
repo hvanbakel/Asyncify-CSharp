@@ -113,22 +113,29 @@ namespace Asyncify
         {
             var syntaxRoot = await document.GetSyntaxRootAsync(cancellationToken);
             method = RefindMethod(method, syntaxRoot);
+
+            IEnumerable<IGrouping<DocumentId, Location>> callersByDocumentId = 
+                await GetCallerSites(document.Project.Solution, document, method, cancellationToken);
+
             syntaxRoot = FixMethodSignature(ref method, returnTypeSymbol, syntaxRoot);
             
             var newSolution = document.Project.Solution.WithDocumentSyntaxRoot(document.Id, syntaxRoot);
-
-            var newDocument = newSolution.GetDocument(document.Id);
-            newSolution = await FixCallingMembersAsync(newSolution, newDocument, method, cancellationToken);
+                
+            newSolution = await FixCallingMembersAsync(newSolution, callersByDocumentId, cancellationToken);
             return newSolution;
         }
 
-        private static async Task<Solution> FixCallingMembersAsync(Solution solution, Document newDocument, MethodDeclarationSyntax method, CancellationToken cancellationToken)
+        private static async Task<IEnumerable<IGrouping<DocumentId, Location>>> GetCallerSites(Solution solution, Document newDocument, MethodDeclarationSyntax method, CancellationToken cancellationToken)
         {
             var methodSymbol = await FindMethodSymbolInSolution(newDocument, method, cancellationToken);
 
             var callers = await SymbolFinder.FindCallersAsync(methodSymbol, solution, cancellationToken);
             var callersByDocumentId = callers.SelectMany(x => x.Locations).GroupBy(x => solution.GetDocumentId(x.SourceTree));
+            return callersByDocumentId;
+        }
 
+        private static async Task<Solution> FixCallingMembersAsync(Solution solution, IEnumerable<IGrouping<DocumentId, Location>> callersByDocumentId, CancellationToken cancellationToken)
+        {
             foreach (var documentId in callersByDocumentId)
             {
                 var document = solution.GetDocument(documentId.Key);
@@ -139,6 +146,7 @@ namespace Asyncify
 
                 var semanticModel = await document.GetSemanticModelAsync(cancellationToken);
                 var callerRoot = await document.GetSyntaxRootAsync(cancellationToken);
+
                 var referencesInDocument = documentId.Select(x => callerRoot.FindNode(x.SourceSpan)).ToArray();
                 var returnTypeSymbols = referencesInDocument
                     .Select(x => x.FirstAncestorOrSelf<MethodDeclarationSyntax>())
@@ -193,7 +201,6 @@ namespace Asyncify
                 solution = await RecurseUpCallTree(solution, referencesInDocument, document, cancellationToken);
             }
 
-
             return solution;
         }
 
@@ -211,7 +218,10 @@ namespace Asyncify
             var refactoredMethods = referencesInDocument.Select(x => x.FirstAncestorOrSelf<MethodDeclarationSyntax>()).ToArray();
             foreach (var refactoredMethod in refactoredMethods.Where(x => !x.HasOutOrRefParameters()))
             {
-                solution = await FixCallingMembersAsync(solution, solution.GetDocument(document.Id), refactoredMethod, cancellationToken);
+                IEnumerable<IGrouping<DocumentId, Location>> callersByDocumentId =
+                    await GetCallerSites(solution, solution.GetDocument(document.Id), refactoredMethod, cancellationToken);
+
+                solution = await FixCallingMembersAsync(solution, callersByDocumentId, cancellationToken);
             }
             return solution;
         }
@@ -227,6 +237,8 @@ namespace Asyncify
             return methodSymbol;
         }
 
+        private static ParameterSyntax[] _cancellationToken = ParseParameterList("(CancellationToken cancellationToken = default)").Parameters.ToArray();
+
         private static SyntaxNode FixMethodSignature(ref MethodDeclarationSyntax method, ITypeSymbol returnTypeSymbol, SyntaxNode syntaxRoot)
         {
             if (method.Modifiers.Any(SyntaxKind.AsyncKeyword))
@@ -237,15 +249,16 @@ namespace Asyncify
             TypeSyntax typeSyntax;
             if (returnTypeSymbol.SpecialType == SpecialType.System_Void)
             {
-                typeSyntax = ParseTypeName(typeof(Task).FullName);
+                typeSyntax = ParseTypeName(typeof(Task).Name);
             }
             else
             {
-                typeSyntax = ParseTypeName(typeof(Task).FullName + "<" + method.ReturnType.WithoutTrivia().ToFullString() + ">");
+                typeSyntax = ParseTypeName(typeof(Task).Name + "<" + method.ReturnType.WithoutTrivia().ToFullString() + ">");
             }
 
             var newMethod = method
-                    .WithReturnType(typeSyntax.WithTrailingTrivia(Space));
+                    .WithReturnType(typeSyntax.WithTrailingTrivia(Space))
+                    .AddParameterListParameters(_cancellationToken);
 
             if (method.FirstAncestorOrSelf<InterfaceDeclarationSyntax>() == null)
             {
@@ -257,8 +270,27 @@ namespace Asyncify
             //var temp = tempRoot.GetCurrentNode(method);
 
             syntaxRoot = syntaxRoot.ReplaceNode(method, newMethod);
+            
+            // [iouris] - Adding this breaks refactoring of callers
+            //    syntaxRoot = EnsureUsing((CompilationUnitSyntax)syntaxRoot, "System.Threading");
             method = RefindMethod(method, syntaxRoot);
             return syntaxRoot;
+        }
+
+        static SyntaxNode EnsureUsing(CompilationUnitSyntax syntaxRoot, string @namespace)
+        {
+
+            // Iterate through our usings to see if we've got what we need...
+            if (!syntaxRoot.Usings.Any(u => u.Name.ToString() == @namespace))
+            {
+                // Create and add the using statement
+                // UNDONE [iouris] - hardcoding the namespace
+                var usingStatement = UsingDirective(QualifiedName(IdentifierName("System"), IdentifierName("Threading")));
+                syntaxRoot = syntaxRoot.AddUsings(usingStatement);
+            }
+
+            return syntaxRoot;
+
         }
 
         private static MethodDeclarationSyntax RefindMethod(MethodDeclarationSyntax method, SyntaxNode syntaxRoot)
@@ -266,9 +298,15 @@ namespace Asyncify
             return syntaxRoot
                 .DescendantNodes()
                 .OfType<MethodDeclarationSyntax>()
-                .Single(x => 
-                    x.Identifier.ValueText == method.Identifier.ValueText && 
-                    (x.ParameterList == method.ParameterList || x.ParameterList.ToFullString() == method.ParameterList.ToFullString()));
+                .Single(x =>
+                    x.Identifier.ValueText == method.Identifier.ValueText &&
+                    SameParameters(method, x));
+        }
+
+        private static bool SameParameters(MethodDeclarationSyntax originalMethod, MethodDeclarationSyntax newMethod)
+        {
+            return newMethod.ParameterList == originalMethod.ParameterList || newMethod.ParameterList.ToFullString() == originalMethod.ParameterList.ToFullString()
+                || newMethod.ParameterList.ToFullString() == originalMethod.AddParameterListParameters(_cancellationToken).ParameterList.ToFullString();
         }
 
         protected abstract SyntaxNode ApplyFix(MethodDeclarationSyntax method, TSyntaxType node, SyntaxNode syntaxRoot);
