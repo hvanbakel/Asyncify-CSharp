@@ -83,8 +83,8 @@ namespace Asyncify
             }
 
             return returnType.IsGenericType ?
-                returnType.ConstructedFrom.Equals(taskOfTSymbol.Value) :
-                returnType.Equals(taskSymbol.Value);
+                returnType.ConstructedFrom.Equals(taskOfTSymbol.Value, SymbolEqualityComparer.Default) :
+                returnType.Equals(taskSymbol.Value, SymbolEqualityComparer.Default);
         }
     }
 }
