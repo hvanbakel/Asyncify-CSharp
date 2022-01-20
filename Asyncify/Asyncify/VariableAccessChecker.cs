@@ -45,8 +45,8 @@ namespace Asyncify
             var taskOfTSymbol = semanticModel.Compilation.GetTypeByMetadataName(typeof(Task).FullName + "`1");
 
             return symbol.IsGenericType ?
-                symbol.ConstructedFrom.Equals(taskOfTSymbol) :
-                symbol.Equals(taskSymbol);
+                symbol.ConstructedFrom.Equals(taskOfTSymbol, SymbolEqualityComparer.Default) :
+                symbol.Equals(taskSymbol, SymbolEqualityComparer.Default);
         }
 
         private INamedTypeSymbol FindSymbol(ExpressionSyntax expression)
